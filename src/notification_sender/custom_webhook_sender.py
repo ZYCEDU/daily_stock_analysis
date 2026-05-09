@@ -32,7 +32,7 @@ class CustomWebhookSender:
         self._custom_webhook_bearer_token = getattr(config, 'custom_webhook_bearer_token', None)
         self._custom_webhook_body_template = getattr(config, 'custom_webhook_body_template', None)
         self._webhook_verify_ssl = getattr(config, 'webhook_verify_ssl', True)
-        self._dingtalk_secret = getattr(config, 'dingtalk_secret', None)
+        self._dingtalk_secret = getattr(config, 'dingtalk_app_secret', None)
 
     def _build_signed_dingtalk_url(self, base_url: str, secret: str) -> str:
         """生成带时间戳和签名的钉钉 Webhook URL"""
