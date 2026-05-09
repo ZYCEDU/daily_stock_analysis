@@ -32,7 +32,27 @@ class CustomWebhookSender:
         self._custom_webhook_bearer_token = getattr(config, 'custom_webhook_bearer_token', None)
         self._custom_webhook_body_template = getattr(config, 'custom_webhook_body_template', None)
         self._webhook_verify_ssl = getattr(config, 'webhook_verify_ssl', True)
- 
+        self._dingtalk_secret = getattr(config, 'dingtalk_secret', None)
+
+    def _build_signed_dingtalk_url(self, base_url: str, secret: str) -> str:
+        """生成带时间戳和签名的钉钉 Webhook URL"""
+        import time
+        import hmac
+        import hashlib
+        import base64
+        import urllib.parse
+        
+        timestamp = str(round(time.time() * 1000))
+        secret_enc = secret.encode('utf-8')
+        string_to_sign = f'{timestamp}\n{secret}'
+        string_to_sign_enc = string_to_sign.encode('utf-8')
+        hmac_code = hmac.new(secret_enc, string_to_sign_enc, digestmod=hashlib.sha256).digest()
+        sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
+        
+        # 如果 base_url 已经包含 ?，则用 & 连接，否则用 ?
+        separator = '&' if '?' in base_url else '?'
+        return f"{base_url}{separator}timestamp={timestamp}&sign={sign}"
+
     def send_to_custom(self, content: str) -> bool:
         """
         推送消息到自定义 Webhook
@@ -67,7 +87,8 @@ class CustomWebhookSender:
                 # Discord 格式: {"content": "xxx"}
                 
                 # 钉钉机器人对 body 有字节上限（约 20000 bytes），超长需要分批发送
-                if self._is_dingtalk_webhook(url):
+                if self._is_dingtalk_webhook(url) and self._dingtalk_secret:
+                    url = self._build_signed_dingtalk_url(url, self._dingtalk_secret)
                     templated_payload = self._build_custom_webhook_template_payload(content)
                     if templated_payload is not None:
                         if self._post_custom_webhook(url, templated_payload, timeout=30):
